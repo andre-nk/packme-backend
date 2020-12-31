@@ -16,7 +16,7 @@ class CreateTransactionsTable extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->json('packs');
-            $table->string('status');
+            $table->string('status')->nullable();
             $table->string('provider')->nullable();
             $table->integer('user_id');
             $table->text('payment_url');

@@ -57,19 +57,20 @@ class TransactionController extends Controller
     public function checkout(Request $request)
     {
         $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'id' => 'required|exists:users,id',
             'type' => 'required',
             'valuation' => 'required',
-            'packs' => 'required'
+            'packs',
         ]);
 
         $transaction = Transactions::create([
-            'id' => $request->user_id,
+            // 'id' => $request->id,
             'status' => $request->status,
             'payment_url' => '',
             'type' => $request->type,
             'valuation' => $request->valuation,
-            'packs' => $request->packs
+            'packs' => $request->packs,
+            'user_id' => $request->id
         ]);
 
         //MIDTRANS CONFIG
@@ -80,7 +81,7 @@ class TransactionController extends Controller
 
         //call the created transaction
         $transactionGetter = Transactions::with(['user'])->find($transaction->id);
-        $userGetter = User::where('id', $request->$request->user_id)->first();
+        $userGetter = User::where('id', $request->id)->first();
 
         // $midtrans = [
         //     'transaction_details' => [
@@ -104,6 +105,9 @@ class TransactionController extends Controller
                 //call Midtrans Iris / XENDIT
                 // $transactionGetter->payment_url = ''; //PENDING
                 // $transactionGetter->save();
+                $transactionGetter->status = 'Success';
+
+                $transactionGetter->save();
                 return ResponseFormatter::success(
                     $transactionGetter,
                     'Transaksi Berhasil'
@@ -125,11 +129,15 @@ class TransactionController extends Controller
 
                 //tambah 
                 //$userGetter; //edit this constant (PACK DETAILS)
+                
+                $userGetter->packs = json_encode($request->packs, true);
+                $userGetter->save();
 
                 return ResponseFormatter::success(
-                    $userGetter->packs,
+                    json_encode($request->packs, true),
                     'Peminjaman Berhasil'
                 );
+                
             } catch (Exception $error) {
                 return ResponseFormatter::error(
                     $error->getMessage(),
