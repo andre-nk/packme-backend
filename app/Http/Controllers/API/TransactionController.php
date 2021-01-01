@@ -129,15 +129,16 @@ class TransactionController extends Controller
 
                 //tambah 
                 //$userGetter; //edit this constant (PACK DETAILS)
-                
-                $userGetter->packs = json_encode($request->packs, true);
+
+                $userJson = json_encode($request->packs, true);
+                $userDBJson = json_encode($userGetter->packs, true);
+                $userGetter->packs = json_encode(array_merge(explode(' ', json_decode($userJson, true)), explode(' ', json_decode($userDBJson, true))));
                 $userGetter->save();
 
                 return ResponseFormatter::success(
                     json_encode($request->packs, true),
                     'Peminjaman Berhasil'
                 );
-                
             } catch (Exception $error) {
                 return ResponseFormatter::error(
                     $error->getMessage(),
@@ -157,12 +158,19 @@ class TransactionController extends Controller
                 //KONFIRMASI (checkout method dipanggil) => PACKS = packs yang akan dikembalikan
 
                 //$transactionGetter->packs = ''; KURANGI PACK SESUAI PACK DETAIL YANG AKAN DIKEMBALIKAN, FIND OUT HOW!
-               //tambah 
-               $userGetter; //edit this constant (PACK DETAILS)
+                //tambah 
+                $userJson = json_encode($request->packs, true);
+                $userDBJson = explode(' ', json_encode($userGetter->packs, true));
 
+                if (($key = array_search($userJson, $userDBJson)) !== false) {
+                    unset($userDBJson[$key]);
+                }
+                
+                $userGetter->packs = $userDBJson;
+                $userGetter->save();
 
                 return ResponseFormatter::success(
-                    $userGetter,
+                    json_encode($request->packs, true),
                     'Pengembalian Berhasil'
                 );
                 //PACK INFO PENDING
