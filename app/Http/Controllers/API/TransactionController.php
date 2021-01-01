@@ -130,13 +130,13 @@ class TransactionController extends Controller
                 //tambah 
                 //$userGetter; //edit this constant (PACK DETAILS)
 
-                $userJson = json_encode($request->packs, true);
-                $userDBJson = json_encode($userGetter->packs, true);
-                $userGetter->packs = json_encode(array_merge(explode(' ', json_decode($userJson, true)), explode(' ', json_decode($userDBJson, true))));
+                $userJson = explode(',', $request->packs);
+                $userDBJson = json_decode($userGetter->packs) ?? [];
+                $userGetter->packs = json_encode(array_merge($userJson, $userDBJson));
                 $userGetter->save();
 
                 return ResponseFormatter::success(
-                    json_encode($request->packs, true),
+                    json_decode($userGetter->packs),
                     'Peminjaman Berhasil'
                 );
             } catch (Exception $error) {
@@ -159,18 +159,43 @@ class TransactionController extends Controller
 
                 //$transactionGetter->packs = ''; KURANGI PACK SESUAI PACK DETAIL YANG AKAN DIKEMBALIKAN, FIND OUT HOW!
                 //tambah 
-                $userJson = json_encode($request->packs, true);
-                $userDBJson = explode(' ', json_encode($userGetter->packs, true));
+                // $userJson = json_encode($request->packs, true);
+                // $userDBJson = explode(' ', json_encode($userGetter->packs, true));
 
-                if (($key = array_search($userJson, $userDBJson)) !== false) {
-                    unset($userDBJson[$key]);
+                $sourceArr = explode(',', $request->packs);
+                $DBArr = json_decode($userGetter->packs);
+
+                $odd = array();
+                $even = array();
+                foreach ($sourceArr as $k => $v) {
+                    if ($k % 2 == 0) {
+                        $even[] = $v;
+                    } else {
+                        $odd[] = $v;
+                    }
                 }
-                
-                $userGetter->packs = $userDBJson;
-                $userGetter->save();
+
+                foreach ($even as $key) {
+                    $indicator = array_search($key, $DBArr);
+                    if ($indicator != false) {
+                        for ($i = 0; $i < count($odd); $i++) {
+                            $DBArr[$indicator + 1] = (int)$DBArr[$indicator + 1] - (int) $odd[$i];
+                            if ((int) $DBArr[$indicator + 1] <= 0) {
+                                unset($DBArr[$indicator]);
+                                unset($DBArr[$indicator + 1]);
+                            }else{
+                                $unexpectedMsg = 'Error';
+                            }
+                        }
+                    }
+                }
+
+                // if (($key = array_search($sourceArr, $userDBJson)) !== false) {
+                //     unset($userDBJson[$key]);
+                // }
 
                 return ResponseFormatter::success(
-                    json_encode($request->packs, true),
+                    $unexpectedMsg ?? $DBArr,
                     'Pengembalian Berhasil'
                 );
                 //PACK INFO PENDING
