@@ -23,7 +23,7 @@ class CreateUsersTable extends Migration
             $table->text('address')->nullable();
             $table->string('phone_number')->nullable();
             $table->text('qr_code')->nullable();
-            $table->integer('current_credit')->nullable();
+            $table->integer('current_credit')->default((int)'0');
             $table->json('packs')->nullable();
             $table->foreignId('current_team_id')->nullable();
             $table->text('profile_photo_path')->nullable();

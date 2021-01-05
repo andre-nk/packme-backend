@@ -17,7 +17,12 @@ class CreateRestosTable extends Migration
             $table->id();
             $table->string('restoName');
             $table->longText('address');
-            $table->json('cashier1');
+            $table->json('cashier1')->nullable();
+            $table->json('cashier1_quantity')->nullable();
+            $table->json('cashier2')->nullable();
+            $table->json('cashier2_quantity')->nullable();
+            $table->json('cashier3')->nullable();
+            $table->json('cashier3_quantity')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

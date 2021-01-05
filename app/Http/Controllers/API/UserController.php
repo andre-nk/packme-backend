@@ -76,13 +76,11 @@ class UserController extends Controller
                     'email' => $request->email,
                     'address' => $request->address,
                     'phone_number' => $request->phoneNumber,
-                    'qr_code' => $request -> qrCode,
                     'password' => Hash::make($request->password)
                 ]    
             );
 
             $user = User::where('email', $request->email)->first();
-
             $tokenResult = $user->createToken('authToken')->plainTextToken;
 
             return ResponseFormatter::success(

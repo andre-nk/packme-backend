@@ -61,6 +61,8 @@ class TransactionController extends Controller
             'type' => 'required',
             'valuation' => 'required',
             'packs',
+            'packs_quantity',
+            'resto_id'
         ]);
 
         $transaction = Transactions::create([
@@ -70,7 +72,7 @@ class TransactionController extends Controller
             'type' => $request->type,
             'valuation' => $request->valuation,
             'packs' => $request->packs,
-            'user_id' => $request->id
+            'user_id' => $request->id,
         ]);
 
         //MIDTRANS CONFIG
@@ -82,6 +84,7 @@ class TransactionController extends Controller
         //call the created transaction
         $transactionGetter = Transactions::with(['user'])->find($transaction->id);
         $userGetter = User::where('id', $request->id)->first();
+        $restoGetter = Restos::where('id', $request->resto_id)->first();
 
         // $midtrans = [
         //     'transaction_details' => [
@@ -99,17 +102,22 @@ class TransactionController extends Controller
         //     'vtweb' => []
         // ];
 
-        //MIDTRANS CALL
         if ($transactionGetter->type == 'withdraw') {
             try {
-                //call Midtrans Iris / XENDIT
-                // $transactionGetter->payment_url = ''; //PENDING
-                // $transactionGetter->save();
-                $transactionGetter->status = 'Success';
 
+                if ($userGetter->current_credit >= $request->valuation) {
+                    $userGetter->current_credit = $userGetter->current_credit - $request->valuation;
+                    //CALL MIDTRANS //call Midtrans Iris / XENDIT
+                    // $transactionGetter->payment_url = ''; //PENDING
+                } else {
+                    $errorMsg = 'Your input is exceeding your current credit';
+                }
+
+                $transactionGetter->status = 'Success';
+                $userGetter->save();
                 $transactionGetter->save();
                 return ResponseFormatter::success(
-                    $transactionGetter,
+                    $transactionGetter ?? $errorMsg,
                     'Transaksi Berhasil'
                 );
             } catch (Exception $error) {
@@ -118,7 +126,7 @@ class TransactionController extends Controller
                     'Transaksi Gagal'
                 );
             }
-        } else if ($transactionGetter->type == 'rent') {
+        } else if ($transactionGetter->type == 'return') {
             try {
                 //panggil API TYPE B, YG INI TYPE A 
 
@@ -128,15 +136,32 @@ class TransactionController extends Controller
                 //CONFIRMED? => CALL API YG INI (type + )
 
                 //tambah 
-                //$userGetter; //edit this constant (PACK DETAILS)
+                $packs = explode(',', $request->packs);
+                $packs_quantity = explode(',', $request->packs_quantity);
+                $packsDB = json_decode($userGetter->packs, true);
 
-                $userJson = explode(',', $request->packs);
-                $userDBJson = json_decode($userGetter->packs) ?? [];
-                $userGetter->packs = json_encode(array_merge($userJson, $userDBJson));
+                for ($i = 0; $i < count($packs); $i++) {
+                    $result = $packsDB[$packs[$i]] ?? null;
+                    if ($result != null) {
+                        $packsDB[$packs[$i]] = $packsDB[$packs[$i]] - $packs_quantity[$i];
+                        if ($packsDB[$packs[$i]] <= 0) {
+                            unset($packsDB[$packs[$i]]);
+                        }
+                    } else {
+                        $errorMsg = 'Array key is not found';
+                    }
+                }
+
+                $userGetter->packs = json_encode($packsDB);
+                $transactionGetter->packs = json_encode($packsDB);
+                $transactionGetter->status = 'Success';
+                // $transactionGetter->provider = $restoGetter->restoName ?? null;  //STAFF ID
+
+                $transactionGetter->save();
                 $userGetter->save();
 
                 return ResponseFormatter::success(
-                    json_decode($userGetter->packs),
+                    $packsDB,
                     'Peminjaman Berhasil'
                 );
             } catch (Exception $error) {
@@ -145,10 +170,8 @@ class TransactionController extends Controller
                     'Peminjaman Gagal'
                 );
             }
-        } else if ($transactionGetter->type == 'return') {
+        } else if ($transactionGetter->type == 'rent') {
             try {
-
-
                 //STAFF SUDAH DAPATKAN ID USER => DAPAT DATA PACKS DARI DB SESUAI ID USER
                 //SETELAH QR SCANNING, API DISPLAYER DIPANGGIL.
 
@@ -157,48 +180,33 @@ class TransactionController extends Controller
                 //STAFF MEMILIH PACKS YANG DIKEMBALIKAN + checking
                 //KONFIRMASI (checkout method dipanggil) => PACKS = packs yang akan dikembalikan
 
-                //$transactionGetter->packs = ''; KURANGI PACK SESUAI PACK DETAIL YANG AKAN DIKEMBALIKAN, FIND OUT HOW!
-                //tambah 
-                // $userJson = json_encode($request->packs, true);
-                // $userDBJson = explode(' ', json_encode($userGetter->packs, true));
-
-                $sourceArr = explode(',', $request->packs);
-                $DBArr = json_decode($userGetter->packs);
-
-                $odd = array();
-                $even = array();
-                foreach ($sourceArr as $k => $v) {
-                    if ($k % 2 == 0) {
-                        $even[] = $v;
+                $packs = explode(',', $request->packs);
+                $packs_quantity = explode(',', $request->packs_quantity);
+                $packsDB = json_decode($userGetter->packs, true);
+                
+                for ($i = 0; $i < count($packs); $i++) {
+                    $result = $packsDB[$packs[$i]] ?? null;
+                    if ($result != null) {
+                        $packsDB[$packs[$i]] = $packsDB[$packs[$i]] + $packs_quantity[$i];
                     } else {
-                        $odd[] = $v;
+                        $packsDB[$packs[$i]] = (int) $packs_quantity[$i];
                     }
                 }
 
-                foreach ($even as $key) {
-                    $indicator = array_search($key, $DBArr);
-                    if ($indicator != false) {
-                        for ($i = 0; $i < count($odd); $i++) {
-                            $DBArr[$indicator + 1] = (int)$DBArr[$indicator + 1] - (int) $odd[$i];
-                            if ((int) $DBArr[$indicator + 1] <= 0) {
-                                unset($DBArr[$indicator]);
-                                unset($DBArr[$indicator + 1]);
-                            }else{
-                                $unexpectedMsg = 'Error';
-                            }
-                        }
-                    }
-                }
+                $userGetter->packs = json_encode($packsDB);
+                $transactionGetter->packs = json_encode($packsDB);
+                // $restoGetter->cashier1 = json_encode([]);
+                $transactionGetter->status = 'Success';
+                $transactionGetter->provider = $restoGetter->restoName ?? null;
 
-                // if (($key = array_search($sourceArr, $userDBJson)) !== false) {
-                //     unset($userDBJson[$key]);
-                // }
+                // $restoGetter->save();
+                $transactionGetter->save();
+                $userGetter->save();
 
                 return ResponseFormatter::success(
-                    $unexpectedMsg ?? $DBArr,
+                    $packsDB ?? '',
                     'Pengembalian Berhasil'
                 );
-                //PACK INFO PENDING
             } catch (Exception $error) {
                 return ResponseFormatter::error(
                     $error->getMessage(),
@@ -211,10 +219,10 @@ class TransactionController extends Controller
     public function checkout_B(Request $request)
     {
         $request->validate([
-            'db_link' => $request->db_link
+            'resto_id' => 'required'
         ]);
 
-        $restoGetter = Restos::with(['user'])->find($request->db_link);
+        $restoGetter = Restos::with(['user'])->find($request->resto_id);
 
         if ($restoGetter) {
             return ResponseFormatter::success(
@@ -232,4 +240,25 @@ class TransactionController extends Controller
         }
     }
     //public function driverGetUserData(){}
+
+    public function qrCode(Request $request)
+    {
+        $request->validate([
+            'id'
+        ]);
+
+        $userGetter = User::where('id', $request->id)->first();
+        try {
+            $userGetter->qr_code = "api.qrserver.com/v1/create-qr-code/?data=pack-me-user-" + $request->id + ";size=500x500";
+            return ResponseFormatter::success(
+                $userGetter->qr_code,
+                'Peminjaman Berhasil'
+            );
+        } catch (Exception $error) {
+            return ResponseFormatter::error(
+                $error->getMessage(),
+                'Peminjaman Gagal'
+            );
+        }
+    }
 }

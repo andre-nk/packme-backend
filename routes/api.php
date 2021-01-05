@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::get('transactions', [TransactionController::class, 'all']);
     Route::post('user/photo', [UserController::class, 'updatePhoto']);
     Route::get('transactions', [TransactionController::class, 'all']);
+    Route::get('qr_code', [TransactionController::class, 'qrCode']);
     Route::get('packs', [PackController::class, 'all']);
 });
 
