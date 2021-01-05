@@ -17,16 +17,16 @@ use App\Http\Controllers\API\TransactionController;
 |
 */
 
-Route::middleware('auth:sanctum')->group(function(){
-    Route::get('user', [UserController::class, 'fetch']);
+Route::middleware('auth:sanctum')->group(function () {
     Route::post('user', [UserController::class, 'updateProfile']);
     Route::post('logout', [UserController::class, 'logout']);
     Route::post('checkout', [TransactionController::class, 'checkout']);
-    Route::get('checkout_B', [TransactionController::class, 'checkout_B']);
-    Route::get('transactions', [TransactionController::class, 'all']);
+    Route::post('checkout/display', [TransactionController::class, 'checkout_displayer']);
     Route::post('user/photo', [UserController::class, 'updatePhoto']);
+    Route::post('qr_code', [TransactionController::class, 'qrCode']);
     Route::get('transactions', [TransactionController::class, 'all']);
-    Route::get('qr_code', [TransactionController::class, 'qrCode']);
+    Route::get('transactions', [TransactionController::class, 'all']);
+    Route::get('user', [UserController::class, 'fetch']);
     Route::get('packs', [PackController::class, 'all']);
 });
 

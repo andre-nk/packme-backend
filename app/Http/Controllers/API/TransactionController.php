@@ -162,12 +162,12 @@ class TransactionController extends Controller
 
                 return ResponseFormatter::success(
                     $packsDB,
-                    'Peminjaman Berhasil'
+                    'Pengembalian Berhasil'
                 );
             } catch (Exception $error) {
                 return ResponseFormatter::error(
                     $error->getMessage(),
-                    'Peminjaman Gagal'
+                    'Pengembalian Gagal'
                 );
             }
         } else if ($transactionGetter->type == 'rent') {
@@ -183,7 +183,7 @@ class TransactionController extends Controller
                 $packs = explode(',', $request->packs);
                 $packs_quantity = explode(',', $request->packs_quantity);
                 $packsDB = json_decode($userGetter->packs, true);
-                
+
                 for ($i = 0; $i < count($packs); $i++) {
                     $result = $packsDB[$packs[$i]] ?? null;
                     if ($result != null) {
@@ -195,61 +195,57 @@ class TransactionController extends Controller
 
                 $userGetter->packs = json_encode($packsDB);
                 $transactionGetter->packs = json_encode($packsDB);
-                // $restoGetter->cashier1 = json_encode([]);
+                $restoGetter->cashier1 = json_encode([]);
                 $transactionGetter->status = 'Success';
                 $transactionGetter->provider = $restoGetter->restoName ?? null;
 
-                // $restoGetter->save();
+                $restoGetter->save();
                 $transactionGetter->save();
                 $userGetter->save();
 
                 return ResponseFormatter::success(
                     $packsDB ?? '',
-                    'Pengembalian Berhasil'
+                    'Peminjaman Berhasil'
                 );
             } catch (Exception $error) {
                 return ResponseFormatter::error(
                     $error->getMessage(),
-                    'Pengembalian Gagal'
+                    'Peminjaman Gagal'
                 );
             }
         };
     }
 
-    public function checkout_B(Request $request)
+    public function checkout_displayer(Request $request)
     {
         $request->validate([
-            'resto_id' => 'required'
+            'id' => 'required',
+            'resto_id'
         ]);
-
-        $restoGetter = Restos::with(['user'])->find($request->resto_id);
-
-        if ($restoGetter) {
+        $restoGetter = Restos::where('id', $request->id)->first();
+        try {
+            $packsDB = json_decode($restoGetter->cashier1, true);
             return ResponseFormatter::success(
-                $restoGetter,
-                'Data Restoran Berhasil Diambil'
+                $packsDB,
+                'Data Berhasil Diambil'
             );
-        } else {
+        } catch (Exception $error) {
             return ResponseFormatter::error(
-                [
-                    null,
-                    'Data transaksi gagal diambil',
-                    404
-                ]
+                $error->getMessage(),
+                'Data Gagal'
             );
         }
     }
-    //public function driverGetUserData(){}
 
     public function qrCode(Request $request)
     {
         $request->validate([
-            'id'
+            'id' => 'required'
         ]);
 
         $userGetter = User::where('id', $request->id)->first();
         try {
-            $userGetter->qr_code = "api.qrserver.com/v1/create-qr-code/?data=pack-me-user-" + $request->id + ";size=500x500";
+            $userGetter->qr_code = "api.qrserver.com/v1/create-qr-code/?data=pack-me-user-" . $request->id . ";size=500x500";
             return ResponseFormatter::success(
                 $userGetter->qr_code,
                 'Peminjaman Berhasil'
